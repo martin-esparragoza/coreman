@@ -1,0 +1,2 @@
+# Bootloader
+GPT partitioning.
