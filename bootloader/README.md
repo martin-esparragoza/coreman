@@ -1,2 +1,2 @@
 # Bootloader
-GPT partitioning.
+MBR partitioning.
