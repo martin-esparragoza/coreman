@@ -9,7 +9,13 @@
 ; expected that the size of this
 ; file will not exceed 1 sector.
 [BITS 16]
+%macro strlit 2
+section .mbr_data
+    %1: db %2, 0
+section .mbr
+%endmacro
 extern bootloader_sectors
+extern bootloader_s
 
 section .mbr
     cli
@@ -38,20 +44,26 @@ section .mbr
     mov bx, 0x55AA
     mov dl, [boot_disk]
     int 0x13
+    jnc lba_extensions_installed
 
-    mov cx, sp
-    push WORD 1010111100b
-    mov si, printf_test
+    push WORD __LINE__
+    push WORD file_name
+    strlit err_no_lba, "error[%s:0o%o]: your BIOS does not have the LBA extensions installed."
+    mov si, err_no_lba
     call printf
-    mov bx, sp
-    cmp bx, cx
-    je thingie
 
-    mov ah, 0x0E
-    mov al, '!'
-    int 0x10
+    lba_extensions_installed:
+    mov ah, 0x42
+    mov dl, [boot_disk]
+    mov si, lba_ext_read_packet_s
+    int 0x13
+    jnc bootloader_s
 
-    thingie:
+    push WORD __LINE__
+    push WORD file_name
+    strlit err_no_bootloder, "error[%s:0o%o]: could not load in the bootloader from disk."
+    mov si, err_no_bootloder
+    call printf
     jmp $
 
     ; in
@@ -67,6 +79,7 @@ section .mbr
     ; how to use
     ;   fstring:
     ;       %o: 16 bit octal
+    ;       %s: 16 bit address to start of string
     printf:
         push bp
         mov bp, sp
@@ -97,6 +110,8 @@ section .mbr
             add si, 2
             cmp al, 'o'
             je printf_octal
+            cmp al, 's'
+            je printf_string
 
             ; Error: No recognized token
             stc
@@ -106,6 +121,8 @@ section .mbr
                 add di, 2 ; 16 bits
                 mov dx, [bp + di] ; Get our 16 bit integer that we want to print
                 ror dx, 15 ; Reverse them (we need to go get the high order bits first)
+                push cx
+                mov cx, 5
 
                 printf_octal_loop:
                     mov al, dh
@@ -114,10 +131,27 @@ section .mbr
                     add al, '0' ; To characters
                     int 0x10
                     shl dx, 3
-                    cmp dx, 0
-                    jne printf_octal_loop
+                    dec cx
+                    jnz printf_octal_loop
+
+                pop cx
 
                 jmp printf_loop
+
+            printf_string:
+                add di, 2
+                push si
+                mov si, [bp + di]
+                mov al, [si]
+                printf_string_loop:
+                    int 0x10
+                    inc si
+                    mov al, [si]
+                    cmp al, 0
+                    jg printf_string_loop
+                pop si
+                jmp printf_loop
+
             printf_continue:
 
             int 0x10
@@ -131,8 +165,15 @@ section .mbr
             jmp ax
 
 section .mbr_data
-    bootloader_sectors_to_read: db bootloader_sectors
-    printf_test: db "This is a printf test. Look an octal! : 0o%o",0
+    file_name: db __FILE__, 0
+    lba_ext_read_packet_s:
+    db lba_ext_read_packet_e - lba_ext_read_packet_s ; Packet len
+    db 0 ; Reserved
+    dw bootloader_sectors
+    dw bootloader_s ; Transfer buffer (offset)
+    dw 0 ; Segment of transfer buffer
+    dq 1 ; MBR counts as one buffer
+    lba_ext_read_packet_e:
 
 section .mbr_bss
     boot_disk: resb 1
