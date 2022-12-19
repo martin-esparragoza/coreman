@@ -3,8 +3,9 @@ SECTIONS {
     .mbr 0x7C00 : {
         mbr_s = .;
         *( .mbr );
+        *( .mbr_code );
         *( .mbr_data );
-        /* bss here */
+        *( .bss );
     }
     . += 512 - mbr_size - mbr_header_size;
     .mbr_header : {
@@ -14,9 +15,15 @@ SECTIONS {
     .bootloader : {
         bootloader_s = .;
         *( .bootloader );
-        bootloader_e = .;
+        *( .bootloader_code );
+        *( .bootloader_data );
     }
+
     . += 512 - bootloader_size - 1; /* -1 ??? */
+    .bootloader_bss (NOLOAD) : {
+        *( .bootloader_bss );
+    } 
+    bootloader_e = .;
 }
 
 mbr_size = SIZEOF( .mbr );
