@@ -48,7 +48,7 @@ section .mbr
     .lba_extensions_installed:
     mov ah, 0x42
     mov dl, [boot_disk]
-    mov si, lba_ext_read_packet_s
+    mov si, lba_read_packet
     int 0x13
     jnc bootloader_s
 
@@ -158,19 +158,32 @@ section .mbr_code
             add sp, di
             jmp ax
 
-section .mbr_data
-    file_name: db __FILE__, 0
-    lba_ext_read_packet_s:
-    db lba_ext_read_packet_e - lba_ext_read_packet_s ; Packet len
-    db 0 ; Reserved
-    dw bootloader_sectors
-    dw bootloader_s ; Transfer buffer (offset)
-    dw 0 ; Segment of transfer buffer
-    dq 1 ; MBR counts as one buffer
-    lba_ext_read_packet_e:
-
 section .mbr_bss
     boot_disk: resb 1
+    struc t
+        .a: resb 1
+    endstruc
+    struc lba_ext_read_packet
+        .len: resb 1
+        resb 1 ; Reserved. 0
+        .num_sectors: resw 1
+        .buf: resw 1 ; Transfer buffer (offset)
+        .segment resw 1 ; Segment of transfer buffer
+        .start_sector: resq 1
+    endstruc
+
+
+section .mbr_data
+    file_name: db __FILE__, 0
+    lba_read_packet:
+        istruc lba_ext_read_packet
+            at lba_ext_read_packet.len, db lba_ext_read_packet_size
+            db 0
+            at lba_ext_read_packet.num_sectors, dw bootloader_sectors
+            at lba_ext_read_packet.buf, dw bootloader_s
+            at lba_ext_read_packet.segment, dw 0
+            at lba_ext_read_packet.start_sector, dq 1 ; MBR counts as 1 buffer
+        iend
 
 section .mbr_header
     db 0x55, 0xAA

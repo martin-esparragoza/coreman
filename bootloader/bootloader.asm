@@ -2,11 +2,11 @@
 ; disk. This will be placed in
 ; memory AFTER the master boot
 ; record.
-
 [BITS 16]
 %include "macdef.inc"
-extern boot_disk
 extern printf
+extern graphics13h_init
+extern graphics13h_put_char
 
 section .bootloader
     ; Store number of drives
@@ -34,14 +34,14 @@ section .bootloader
         mov cl, 1
         mov dh, 0
         ; dl already set
-        mov bx, sector_buffer
+        mov bx, sector_buf
         int 0x13
 
-        mov ax, 0x01BE ; 
+        mov ax, 0x01BE
         .partition_loop:
             push di
             mov di, ax
-            add di, sector_buffer
+            add di, sector_buf
             mov bl, [di]
             pop di
             cmp bl, 0x80 ; Bootable partition
@@ -49,8 +49,10 @@ section .bootloader
 
             ; Store the drive and partition position
             mov dh, 0
-            push dx
-            push ax
+            ; Creeate bootable_partition struc
+            push DWORD [sector_buf + 8] ; Starting LBA value
+            push DWORD [sector_buf + 12] ; Number of sectors
+            push dx ; Drive number
             inc di
             jmp .partition_loop_break
 
@@ -64,15 +66,46 @@ section .bootloader
         cmp dl, 0x80
         jg .sector_loop
 
+    push di ; di is going to get clobbered
     push di
-    strlitnl .printf_bootable_drives, "Found 0o%o bootable partitions(s)."
+    strlitnl .printf_bootable_drives, "Found 0o%o bootable partition(s)."
     mov si, .printf_bootable_drives
     call printf
+    pop di
+
+    ; Our stack now contains di number of bootable_partition structures
+
+    push bp
+    push es
+    call graphics13h_init
+    pop es
+    pop bp
+
+    mov al, '0'
+    mov dl, 7
+    mov dh, 6
+    mov bx, 0
+    mov cx, 0
+    push es
+    push di
+    call graphics13h_put_char
+    pop di
+    pop es
+
+    ; TODO Select a bootable partition
+    ;   Identify its fs
+    ;   Set appropriate driver pointers
+    ;   Run it
 
     hlt
 
 section .bootloader_data
 
 section .bootloader_bss
-    sector_buffer: resb 512
+    struc bootable_partition
+        .drivenum: resw 1
+        .num_sectors: resd 1
+        .lba: resd 1
+    endstruc
+    sector_buf: resb 512
     num_drives: resb 1

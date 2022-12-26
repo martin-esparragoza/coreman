@@ -1,4 +1,4 @@
 # Bootloader
-A MultiBoot bootloader. 2 stages.
+A MultiBoot bootloader. 2 stages. No floppies.
 ## Sources can be placed look in config.asm for directory (all on partitions):
-- [ ] FAT16 filesystem
+- [ ] FAT32 filesystem

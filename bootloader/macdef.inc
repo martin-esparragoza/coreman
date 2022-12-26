@@ -1,3 +1,4 @@
+[BITS 16]
 %macro strlit 2
 section .bootloader_data
     %1: db %2, 0
