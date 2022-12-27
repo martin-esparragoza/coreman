@@ -33,7 +33,7 @@ section .bootloader_code
 
     ; in
     ;   al: char
-    ;   dl: text color
+    ;   dl: text color (248+ for transparent)
     ;   dh: background color
     ;   bx: x
     ;   cx: y
@@ -85,10 +85,14 @@ section .bootloader_code
                 pop bx
                 jz .draw_background
 
+                cmp dl, 248
+                jae .row_loop_e
                 mov [es:di], dl
                 jmp .row_loop_e
 
                 .draw_background:
+                    cmp dh, 248
+                    jae .row_loop_e
                     mov [es:di], dh
 
                 .row_loop_e:

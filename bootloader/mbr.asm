@@ -142,7 +142,7 @@ section .mbr_code
                     inc si
                     mov al, [si]
                     cmp al, 0
-                    jg .printf_string_loop
+                    ja .printf_string_loop
                 pop si
                 jmp .printf_loop
 

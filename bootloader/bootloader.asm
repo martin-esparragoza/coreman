@@ -59,12 +59,12 @@ section .bootloader
             .skip_processing:
             add ax, 16
             cmp ax, 0x01EE
-            jle .partition_loop
+            jbe .partition_loop
         .partition_loop_break:
 
         dec dl
         cmp dl, 0x80
-        jg .sector_loop
+        ja .sector_loop
 
     push di ; di is going to get clobbered
     push di
@@ -81,8 +81,8 @@ section .bootloader
     pop es
     pop bp
 
-    mov al, '0'
-    mov dl, 7
+    mov al, 'B'
+    mov dl, 248
     mov dh, 6
     mov bx, 0
     mov cx, 0

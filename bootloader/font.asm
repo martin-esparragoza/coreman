@@ -1,4 +1,10 @@
-; https://github.com/dhepper/font8x8
+; Author:
+;     Marcel Sondaar
+;     International Business Machines (public domain VGA fonts)
+;
+; License:
+;     Public Domain
+
 [BITS 16]
 global font
 
