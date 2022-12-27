@@ -8,6 +8,7 @@
 %define V_SEG 0xA000
 global graphics13h_init
 global graphics13h_put_char
+global graphics13h_printf
 extern font
 
 section .bootloader_code
@@ -41,7 +42,8 @@ section .bootloader_code
     ; clobbers
     ;   ax
     ;   bx
-    ;   bx
+    ;   cx
+    ;   es
     graphics13h_put_char:
         push ax
         mov ax, V_SEG
@@ -78,6 +80,7 @@ section .bootloader_code
             push ax
             mov ah, 1 ; Mask
             .row_loop:
+                ; For indexing
                 push di
                 mov di, cx
                 push bx
@@ -85,6 +88,7 @@ section .bootloader_code
                 pop bx
                 jz .draw_background
 
+                ; Check for transparency
                 cmp dl, 248
                 jae .row_loop_e
                 mov [es:di], dl
@@ -108,3 +112,124 @@ section .bootloader_code
             dec ax
             jnz .column_loop
         ret
+
+    
+    ; in
+    ;   si: fstring
+    ;   dl: text color (248+ for transparent)
+    ;   dh: background color
+    ;   bx: x
+    ;   cx: y
+    ;   print arguments BACKWARDS on the stack
+    ; out
+    ;   CF: set on error
+    ; clobbers
+    ;   si
+    ;   ax
+    ;   bx
+    ;   cx
+    ;   di
+    ; how to use
+    ;   fstring:
+    ;       %o: 16 bit octal
+    ;       %s: 16 bit address to start of strin
+    graphics13h_printf:
+        push bp
+        mov bp, sp
+
+        mov di, 2 ; bp is 2 bytes
+        .character_loop:
+            mov al, [si]
+
+            cmp al, '%'
+            jne .print_char
+            ; Token recognized
+            inc si
+            cmp [si], BYTE 'o'
+            je .token_octal
+            cmp [si], BYTE 's'
+            je .token_string
+            ; No token found. Return error
+            stc
+            pop bp
+            ret
+
+            .token_octal:
+                add di, 2
+                mov ax, [bp + di]
+                ror ax, 15
+                
+                push si
+                mov si, 5
+                .octal_loop:
+                    ; Octal is goofy. Heres some annoying twiddling to read from highest to lowest
+                    push ax
+                    mov al, ah
+                    and al, 11100000b
+                    shr al, 5 ; Translate it back
+                    add al, '0'
+
+                    push es
+                    push bx
+                    push cx
+                    call graphics13h_put_char
+                    pop cx
+                    pop bx
+                    pop es
+                    add bx, FONT_WIDTH
+
+                    pop ax ; From the bit twiddling
+
+                    shl ax, 3
+                    dec si
+                    jnz .octal_loop
+
+                pop si
+                jmp .continue
+
+            .token_string:
+                add di, 2
+                push si
+                mov si, [bp + di]
+
+                .string_loop:
+                    mov al, [si]
+
+                    push es
+                    push bx
+                    push cx
+                    call graphics13h_put_char
+                    pop cx
+                    pop bx
+                    pop es
+                    add bx, FONT_WIDTH
+
+                    inc si
+                    cmp [si], BYTE 0
+                    jne .string_loop
+
+                pop si
+                jmp .continue
+           
+                    
+
+            .print_char:
+            push es
+            push bx
+            push cx
+            call graphics13h_put_char
+            pop cx
+            pop bx
+            pop es
+            add bx, FONT_WIDTH
+            
+            .continue:
+            inc si
+            cmp [si], BYTE 0
+            jne .character_loop
+
+    pop bp
+    pop ax ; Return address
+    sub di, 2 ; Return address removed (bp has been applied at the start of the subroutine)
+    add sp, di
+    jmp ax

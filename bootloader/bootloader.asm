@@ -6,7 +6,7 @@
 %include "macdef.inc"
 extern printf
 extern graphics13h_init
-extern graphics13h_put_char
+extern graphics13h_printf
 
 section .bootloader
     ; Store number of drives
@@ -81,16 +81,18 @@ section .bootloader
     pop es
     pop bp
 
-    mov al, 'B'
-    mov dl, 248
-    mov dh, 6
+    strlit .test_printf, "Octal: 0o%o. Str: %s"
+    mov dl, 20
+    mov dh, 7
     mov bx, 0
     mov cx, 0
-    push es
+    mov si, .test_printf
     push di
-    call graphics13h_put_char
+    strlit .test_str, "im a string!"
+    push .test_str
+    push WORD 55
+    call graphics13h_printf
     pop di
-    pop es
 
     ; TODO Select a bootable partition
     ;   Identify its fs
