@@ -4,6 +4,7 @@
 ; record.
 [BITS 16]
 %include "macdef.inc"
+%include "../config.inc"
 extern printf
 extern graphics13h_init
 extern graphics13h_printf
@@ -81,16 +82,15 @@ section .bootloader
     pop es
     pop bp
 
+    %strcat .title_text_m "CoreMan bootloader v", VERSION
+    strlit .title_text, .title_text_m
     strlit .test_printf, "Octal: 0o%o. Str: %s"
     mov dl, 20
     mov dh, 7
     mov bx, 0
     mov cx, 0
-    mov si, .test_printf
+    mov si, .title_text
     push di
-    strlit .test_str, "im a string!"
-    push .test_str
-    push WORD 55
     call graphics13h_printf
     pop di
 

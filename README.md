@@ -1,2 +1,1 @@
-# MASS
-It has MASS.
+# CoreMan - Core Management Operating System
