@@ -4,7 +4,14 @@
 ; record.
 [BITS 16]
 %include "macdef.inc"
+%include "vdef.inc"
+%include "font.inc"
 %include "../config.inc"
+%define TITLE_COLOR 34 ; Purple
+%define TITLE_TOP_PADDING 4
+%define DISK_LISTING_TEXT_COLOR 15
+%define DISK_LISTING_SELECTED_COLOR 9
+%define DISK_LISTING_TOP_PADDING 25
 extern printf
 extern graphics13h_init
 extern graphics13h_printf
@@ -27,6 +34,7 @@ section .bootloader
     mov di, 0 ; Will store # of bootable partitions
     mov dl, 0x80 - 1
     add dl, [num_drives] ; starts at 1
+    mov si, 0 ; Flag if selected has been set yet
     .sector_loop:
         ; Read the 1st sector from memory
         mov ah, 0x02
@@ -50,7 +58,7 @@ section .bootloader
 
             ; Store the drive and partition position
             mov dh, 0
-            ; Creeate bootable_partition struc
+            ; Create bootable_partition struc
             push DWORD [sector_buf + 8] ; Starting LBA value
             push DWORD [sector_buf + 12] ; Number of sectors
             push dx ; Drive number
@@ -82,17 +90,56 @@ section .bootloader
     pop es
     pop bp
 
+    ; Render the title
     %strcat .title_text_m "CoreMan bootloader v", VERSION
     strlit .title_text, .title_text_m
-    strlit .test_printf, "Octal: 0o%o. Str: %s"
-    mov dl, 20
-    mov dh, 7
-    mov bx, 0
-    mov cx, 0
+    mov dl, TITLE_COLOR
+    mov dh, 248
+    mov bx, (V_WIDTH / 2) - (.title_text_len * FONT_WIDTH) / 2 ; Centered
+    mov cx, TITLE_TOP_PADDING
     mov si, .title_text
     push di
     call graphics13h_printf
     pop di
+
+    call render_disk_listing
+
+    .input_loop:
+        xor ax, ax
+        int 0x16
+
+        cmp ah, 0x48 ; Up arrow
+        je .process_up_arrow
+        cmp ah, 0x50 ; Down arrow
+        je .process_down_arrow
+        cmp ah, 0x1C ; Enter
+        je .process_enter
+        jmp .input_loop_continue
+
+        .process_up_arrow:
+            cmp [selected_drive], WORD 0
+            je .input_loop_continue
+            dec WORD [selected_drive]
+            jmp .input_loop_continue
+
+        .process_down_arrow:
+            push ax
+            mov ax, [selected_drive]
+            inc ax
+            cmp ax, di
+            pop ax
+            jae .input_loop_continue
+            inc WORD [selected_drive]
+            jmp .input_loop_continue
+
+        .process_enter:
+            ; TODO Try to boot off that drive
+            hlt
+
+        .input_loop_continue:
+        call render_disk_listing
+        jmp .input_loop
+
 
     ; TODO Select a bootable partition
     ;   Identify its fs
@@ -101,9 +148,54 @@ section .bootloader
 
     hlt
 
+section .bootloader_code
+    strlit disk_list_str, "Drive Num: 0o%o"
+    ; FIXME known bug: upon there being too many drives unexpected behavior may occour
+    render_disk_listing:
+        mov bp, sp
+        add bp, 2 ; Return address
+        mov si, disk_list_str
+        mov dl, DISK_LISTING_TEXT_COLOR
+        mov cx, DISK_LISTING_TOP_PADDING
+        mov bx, 0 ; bx does not move so it can be a counter
+        .disk_list_loop:
+            push di
+            push si
+            push bx
+            push cx
+    
+            cmp bx, [selected_drive]
+            je .set_selected
+    
+            mov dh, 0 ; Overwrite previous
+            jmp .disk_list_loop_continue
+    
+            .set_selected:
+                mov dh, DISK_LISTING_SELECTED_COLOR
+    
+            .disk_list_loop_continue:
+            mov bx, (V_WIDTH / 2) - ((disk_list_str_len + 3) * FONT_WIDTH) / 2 ; + 3 because an octal takes up 5 in length
+            mov ax, [bp + bootable_partition.drivenum]
+            sub ax, 0x80
+            push ax
+            call graphics13h_printf
+    
+            pop cx
+            pop bx
+            pop si
+            pop di
+    
+            add cx, FONT_HEIGHT
+            add bp, bootable_partition_size
+            inc bx
+            cmp bx, di 
+            jne .disk_list_loop
+        ret
+
 section .bootloader_data
 
 section .bootloader_bss
+    selected_drive: resw 1
     struc bootable_partition
         .drivenum: resw 1
         .num_sectors: resd 1

@@ -3,9 +3,7 @@
 ; utility functions.
 [BITS 16]
 %include "font.inc"
-%define V_WIDTH 320
-%define V_HEIGHT 200
-%define V_SEG 0xA000
+%include "vdef.inc"
 global graphics13h_init
 global graphics13h_put_char
 global graphics13h_printf
@@ -45,6 +43,7 @@ section .bootloader_code
     ;   bx
     ;   cx
     ;   es
+    ;   si
     graphics13h_put_char:
         push ax
         mov ax, V_SEG
