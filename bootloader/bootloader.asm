@@ -149,7 +149,7 @@ section .bootloader
     hlt
 
 section .bootloader_code
-    strlit disk_list_str, "Drive Num: 0o%o"
+    strlit disk_list_str, "Drive num: 0o%o"
     ; FIXME known bug: upon there being too many drives unexpected behavior may occour
     render_disk_listing:
         mov bp, sp
