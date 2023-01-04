@@ -9,7 +9,7 @@ global graphics13h_put_char
 global graphics13h_printf
 extern font
 
-section .bootloader_code
+SECTION .bootloader_code
     ; in
     ;   es
     ; out
@@ -132,7 +132,7 @@ section .bootloader_code
     ; how to use
     ;   fstring:
     ;       %o: 16 bit octal
-    ;       %s: 16 bit address to start of strin
+    ;       %s: 16 bit address to start of string
     graphics13h_printf:
         push bp
         mov bp, sp

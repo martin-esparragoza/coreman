@@ -10,15 +10,15 @@
 ; file will not exceed 1 sector.
 [BITS 16]
 %macro strlit 2
-section .mbr_data
+[section .mbr_data]
     %1: db %2, 0
-section .mbr
+__SECT__
 %endmacro
 global printf
 extern bootloader_sectors
 extern bootloader_s
 
-section .mbr
+SECTION .mbr
     cli
     ; Clear registers
     xor ax, ax
@@ -59,7 +59,7 @@ section .mbr
     call printf
     hlt
 
-section .mbr_code
+SECTION .mbr_code
     ; in
     ;   si: fstring
     ;   print arguments BACKWARDS on the stack
@@ -173,7 +173,7 @@ section .mbr_bss
     endstruc
 
 
-section .mbr_data
+SECTION .mbr_data
     file_name: db __FILE__, 0
     lba_read_packet:
         istruc lba_ext_read_packet
@@ -185,5 +185,5 @@ section .mbr_data
             at lba_ext_read_packet.start_sector, dq 1 ; MBR counts as 1 buffer
         iend
 
-section .mbr_header
+SECTION .mbr_header
     db 0x55, 0xAA

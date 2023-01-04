@@ -12,11 +12,13 @@
 %define DISK_LISTING_TEXT_COLOR 15
 %define DISK_LISTING_SELECTED_COLOR 9
 %define DISK_LISTING_TOP_PADDING 25
+global bootable_partition.drivenum
 extern printf
 extern graphics13h_init
 extern graphics13h_printf
+extern set_fs_driver_ptrs
 
-section .bootloader
+SECTION .bootloader
     ; Store number of drives
     mov ax, 0x40
     mov es, ax
@@ -133,8 +135,12 @@ section .bootloader
             jmp .input_loop_continue
 
         .process_enter:
-            ; TODO Try to boot off that drive
-            hlt
+            mov bp, sp
+            mov cx, bootable_partition_size
+            mov ax, [selected_drive]
+            mul cx
+            add bp, ax
+            call set_fs_driver_ptrs
 
         .input_loop_continue:
         call render_disk_listing
@@ -148,12 +154,13 @@ section .bootloader
 
     hlt
 
-section .bootloader_code
-    strlit disk_list_str, "Drive num: 0o%o"
-    ; FIXME known bug: upon there being too many drives unexpected behavior may occour
+SECTION .bootloader_code
+    ; Slightly scuffed but it needed to happen
+    ; FIXME clean up
     render_disk_listing:
         mov bp, sp
         add bp, 2 ; Return address
+        strlit disk_list_str, "Drive num: 0o%o"
         mov si, disk_list_str
         mov dl, DISK_LISTING_TEXT_COLOR
         mov cx, DISK_LISTING_TOP_PADDING
@@ -188,13 +195,13 @@ section .bootloader_code
             add cx, FONT_HEIGHT
             add bp, bootable_partition_size
             inc bx
-            cmp bx, di 
-            jne .disk_list_loop
+            cmp bx, di
+            jb .disk_list_loop
         ret
 
-section .bootloader_data
+SECTION .bootloader_data
 
-section .bootloader_bss
+SECTION .bootloader_bss
     selected_drive: resw 1
     struc bootable_partition
         .drivenum: resw 1
